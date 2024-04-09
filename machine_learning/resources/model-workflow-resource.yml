@@ -1,6 +1,6 @@
 new_cluster: &new_cluster
   new_cluster:
-    num_workers: 3
+    num_workers: 1
     spark_version: 13.3.x-cpu-ml-scala2.12
     node_type_id: Standard_D3_v2
     custom_tags:
@@ -14,7 +14,7 @@ common_permissions: &permissions
 resources:
   jobs:
     model_training_job:
-      name: ${bundle.target}-machine_learning-model-training-job
+      name: ${bundle.target}-ml_usecase-model-training-job
       job_clusters:
         - job_cluster_key: model_training_job_cluster
           <<: *new_cluster
@@ -22,15 +22,32 @@ resources:
         - task_key: Train
           job_cluster_key: model_training_job_cluster
           notebook_task:
-            notebook_path: ../training/notebooks/TrainWithFeatureStore.py
+            #notebook_path: ../training/notebooks/regression_model.py # regression py
+            #notebook_path: ../training/notebooks/classification_model.py # classification py
+
+            notebook_path: ../training/notebooks/clustering_model.py
             base_parameters:
               env: ${bundle.target}
               # TODO: Update training_data_path
-              training_data_path: /databricks-datasets/nyctaxi-with-zipcodes/subsampled
+              ########################################## regression data
+              # training_data_path: dev_ashish.ashish_mlops.regression_sample
+
+              ########################################## classification py
+              # training_data_path: /databricks-datasets/adult/adult.data 
+              # experiment_name: ${var.experiment_name}
+              # model_name: ${bundle.target}.ml_usecase.${var.model_name}
+              # features_table: ${bundle.target}.ml_usecase.features
+
+              ########################################## clustering py
+              training_data_path: dbfs:/FileStore/demo_data/Iris.csv
               experiment_name: ${var.experiment_name}
-              model_name: ${bundle.target}.machine_learning.${var.model_name}
-              pickup_features_table: ${bundle.target}.machine_learning.trip_pickup_features
-              dropoff_features_table: ${bundle.target}.machine_learning.trip_dropoff_features
+              model_name: ${bundle.target}.clustering_demo_mlops.${var.model_name}
+              sepal_features_table: ${bundle.target}.clustering_demo_mlops.iris_sepal_features
+              petal_features_table: ${bundle.target}.clustering_demo_mlops.iris_petal_features
+              output_prediction_ref: ${bundle.target}.clustering_demo_mlops.predictions_ref
+              model_retraining: 'no'
+              retraining_data_path: dbfs:/FileStore/demo_data/Iris_resampled.csv
+              #dropoff_features_table: ${bundle.target}.ml_usecase.trip_dropoff_features
               # git source information of current ML resource deployment. It will be persisted as part of the workflow run
               git_source_info: url:${bundle.git.origin_url}; branch:${bundle.git.branch}; commit:${bundle.git.commit}
         - task_key: ModelValidation
@@ -56,24 +73,26 @@ resources:
               enable_baseline_comparison: "false"
               # Please refer to data parameter in mlflow.evaluate documentation https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.evaluate
               # TODO: update validation_input
-              validation_input: SELECT * FROM delta.`dbfs:/databricks-datasets/nyctaxi-with-zipcodes/subsampled`
+              #validation_input: SELECT * FROM delta.`dbfs:/databricks-datasets/nyctaxi-with-zipcodes/subsampled`
+              validation_input: dbfs:/FileStore/demo_data/Iris.csv
               # A string describing the model type. The model type can be either "regressor" and "classifier".
               # Please refer to model_type parameter in mlflow.evaluate documentation https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.evaluate
               # TODO: update model_type
-              model_type: regressor
+              #model_type: regressor
               # The string name of a column from data that contains evaluation labels.
               # Please refer to targets parameter in mlflow.evaluate documentation https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.evaluate
               # TODO: targets
-              targets: fare_amount
-              # Specifies the name of the function in machine_learning/training_validation_deployment/validation/validation.py that returns custom metrics.
+              #targets: fare_amount
+              # Specifies the name of the function in ml_usecase/training_validation_deployment/validation/validation.py that returns custom metrics.
               # TODO(optional): custom_metrics_loader_function
-              custom_metrics_loader_function: custom_metrics
-              # Specifies the name of the function in machine_learning/training_validation_deployment/validation/validation.py that returns model validation thresholds.
+              #custom_metrics_loader_function: custom_metrics
+              # Specifies the name of the function in ml_usecase/training_validation_deployment/validation/validation.py that returns model validation thresholds.
               # TODO(optional): validation_thresholds_loader_function
-              validation_thresholds_loader_function: validation_thresholds
-              # Specifies the name of the function in machine_learning/training_validation_deployment/validation/validation.py that returns evaluator_config.
+              #validation_thresholds_loader_function: validation_thresholds
+              # Specifies the name of the function in ml_usecase/training_validation_deployment/validation/validation.py that returns evaluator_config.
               # TODO(optional): evaluator_config_loader_function
-              evaluator_config_loader_function: evaluator_config
+              #evaluator_config_loader_function: evaluator_config
+              silhouette_threshold: "0.3"
               # git source information of current ML resource deployment. It will be persisted as part of the workflow run
               git_source_info: url:${bundle.git.origin_url}; branch:${bundle.git.branch}; commit:${bundle.git.commit}
         - task_key: ModelDeployment
@@ -86,14 +105,17 @@ resources:
               env: ${bundle.target}
               # git source information of current ML resource deployment. It will be persisted as part of the workflow run
               git_source_info: url:${bundle.git.origin_url}; branch:${bundle.git.branch}; commit:${bundle.git.commit}
-      schedule:
-        quartz_cron_expression: "0 0 9 * * ?" # daily at 9am
-        timezone_id: UTC
-      <<: *permissions
+      # schedule:
+      #   quartz_cron_expression: "0 0 9 * * ?" # daily at 9am
+      #   timezone_id: UTC
+      # <<: *permissions
       # If you want to turn on notifications for this job, please uncomment the below code,
       # and provide a list of emails to the on_failure argument.
       #
-      #  email_notifications:
-      #    on_failure:
-      #      - first@company.com
-      #      - second@company.com
+      email_notifications:
+        on_success:
+          - ashish.b.rawat@koantek.com
+        on_start:
+          - ashish.b.rawat@koantek.com
+        on_failure:
+          - ashish.b.rawat@koantek.com

@@ -1,1 +1,126 @@
-# TODO: Add data monitoring support for mlops
+# # TODO: Add data monitoring support for mlops
+# new_cluster: &new_cluster
+#   new_cluster:
+#     num_workers: 1
+#     spark_version: 13.3.x-cpu-ml-scala2.12
+#     node_type_id: Standard_D3_v2
+#     custom_tags:
+#       clusterSource: mlops-stacks_0.3
+
+# common_permissions: &permissions
+#   permissions:
+#     - level: CAN_VIEW
+#       group_name: users
+
+# resources:
+#   jobs:
+#     monitoring_job:
+#       name: ${bundle.target}-ml_usecase-monitoring-job
+#       tasks:
+#         - task_key: Monitoring
+#           <<: *new_cluster
+#           notebook_task:
+#             notebook_path: ../monitoring/DriftMonitoring.py
+#             base_parameters:
+#               #env: ${bundle.target}
+#               input_table_name_ref: ${bundle.target}.ashish_mlops.regression_sample  # TODO: create input table for inference
+#               input_table_name_cur: ${bundle.target}.ashish_mlops.regression_sample
+#               output_monitoring_summary: ${bundle.target}.ml_usecase.drift_monitoring_summary
+#               output_monitoring_percent_change: ${bundle.target}.ml_usecase.drift_monitoring_percent_change
+#               label_column: Target
+#               prediction_column: prediction
+#               lookup_key: id
+#               alpha: 0.05
+#               js_stat_threshold: 0.2
+#               prediction_drift_threshold: 0.95
+#               #output_table_name: ${bundle.target}.ml_usecase.predictions
+#               #model_name: ${bundle.target}.ml_usecase.${var.model_name}
+#               # git source information of current ML resource deployment. It will be persisted as part of the workflow run
+#               git_source_info: url:${bundle.git.origin_url}; branch:${bundle.git.branch}; commit:${bundle.git.commit}
+
+
+
+new_cluster: &new_cluster
+  new_cluster:
+    num_workers: 1
+    spark_version: 13.3.x-cpu-ml-scala2.12
+    node_type_id: Standard_D3_v2
+    custom_tags:
+      clusterSource: mlops-stack/0.2
+
+common_permissions: &permissions
+  permissions:
+    - level: CAN_VIEW
+      group_name: users
+
+resources:
+  jobs:
+    monitoring_job:
+      name: ${bundle.target}-clustering_demo_mlops-monitoring-job
+      job_clusters:
+        - job_cluster_key: monitoring_cluster
+          <<: *new_cluster
+      tasks:
+        - task_key: Drift_Monitoring
+          job_cluster_key: monitoring_cluster
+          notebook_task:
+            notebook_path: ../monitoring/DriftMonitoring_clustering.py
+            base_parameters:
+              env: ${bundle.target}
+              input_table_name_ref: ${bundle.target}.clustering_demo_mlops.predictions_ref
+              input_table_name_cur: ${bundle.target}.clustering_demo_mlops.predictions
+              output_monitoring_summary: ${bundle.target}.clustering_demo_mlops.drift_monitoring_summary
+              output_monitoring_percent_change: ${bundle.target}.clustering_demo_mlops.drift_monitoring_percent_change
+              label_column: Species
+              prediction_column: prediction
+              lookup_key: Id
+              alpha: "0.05"
+              js_stat_threshold: "0.2"
+              prediction_drift_threshold: "0.95"
+              model_name: ${bundle.target}.clustering_demo_mlops.clustering_demo_mlops-model
+              model_alias: Champion
+              # git source information of current ML resource deployment. It will be persisted as part of the workflow run
+              git_source_info: url:${bundle.git.origin_url}; branch:${bundle.git.branch}; commit:${bundle.git.commit}
+        - task_key: model_retraining_required
+          depends_on:
+            - task_key: Drift_Monitoring
+          condition_task:
+            op: EQUAL_TO
+            left: "{{tasks.[Drift_Monitoring].values.[retrain_model]}}"
+            right: "true"
+        - task_key: Model_Retraining
+          depends_on:
+            - task_key: model_retraining_required
+              outcome: "true"
+          run_job_task:
+            job_id: ${resources.jobs.model_training_job.id}
+            job_parameters:
+              env: ${bundle.target}
+              # TODO: Update training_data_path
+              model_retraining: 'yes'
+              retraining_data_path: dbfs:/FileStore/demo_data/Iris_resampled.csv
+              validation_input: dbfs:/FileStore/demo_data/Iris_resampled.csv
+        - task_key: rescore_batch_data
+          job_cluster_key: monitoring_cluster
+          depends_on:
+            - task_key: Model_Retraining
+          notebook_task:
+            notebook_path: ../deployment/batch_inference/notebooks/BatchInference.py
+            base_parameters:
+              env: ${bundle.target}
+              input_table_name: ${bundle.target}.clustering_demo_mlops.feature_store_inference_input  # TODO: create input table for inference
+              output_table_name: ${bundle.target}.clustering_demo_mlops.predictions
+              model_name: ${bundle.target}.clustering_demo_mlops.${var.model_name}
+              # git source information of current ML resource deployment. It will be persisted as part of the workflow run
+              git_source_info: url:${bundle.git.origin_url}; branch:${bundle.git.branch}; commit:${bundle.git.commit}
+      <<: *permissions
+      # If you want to turn on notifications for this job, please uncomment the below code,
+      # and provide a list of emails to the on_failure argument.
+      #
+      email_notifications:
+        on_success:
+          - sumit.r.sahay@koantek.com
+        on_start:
+          - sumit.r.sahay@koantek.com
+        on_failure:
+          - sumit.r.sahay@koantek.com

@@ -4,7 +4,7 @@
 #
 # This notebook shows an example of a Model Training pipeline using Databricks Feature Store tables.
 # It is configured and can be executed as the "Train" task in the model_training_job workflow defined under
-# ``machine_learning/resources/model-workflow-resource.yml``
+# ``ml_usecase/resources/model-workflow-resource.yml``
 #
 # Parameters:
 # * env (required):                 - Environment the notebook is run in (staging, or prod). Defaults to "staging".
@@ -21,9 +21,26 @@
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC The commands %load_ext autoreload and %autoreload 2 are used in Jupyter notebooks and IPython environments to enable automatic reloading of modules before executing code. This feature is particularly useful during development when you are making frequent changes to your code and want those changes to be reflected in the notebook without having to restart the kernel.
+
+# COMMAND ----------
+
 import os
 notebook_path =  '/Workspace/' + os.path.dirname(dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get())
 %cd $notebook_path
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC notebook_path = '/Workspace/' + os.path.dirname(dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()): This line is a bit more complex and specific to Databricks notebooks.
+# MAGIC
+# MAGIC  - dbutils: Databricks utilities (dbutils) provide a way to perform various system functions within Databricks, such as file management and accessing notebook context.
+# MAGIC  - dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get(): This nested method call is used to retrieve the full path of the current Databricks notebook.
+# MAGIC  - os.path.dirname(...): Once the full notebook path is retrieved, os.path.dirname is used to get the directory name that contains the notebook. This effectively gives you the path to the folder where the current notebook is located.
+# MAGIC  
+# MAGIC The resulting directory path is then concatenated with '/Workspace/', likely to construct a full path that is relevant within the Databricks workspace environment.
+# MAGIC %cd $notebook_path: This line uses the IPython magic command %cd to change the current working directory of the Jupyter notebook to the directory path calculated in the previous step. The $notebook_path variable is expanded to its value, and the notebook's working directory is changed to that path.
 
 # COMMAND ----------
 
@@ -34,8 +51,8 @@ notebook_path =  '/Workspace/' + os.path.dirname(dbutils.notebook.entry_point.ge
 dbutils.library.restartPython()
 
 # COMMAND ----------
-# DBTITLE 1, Notebook arguments
 
+# DBTITLE 1, Notebook arguments
 # List of input args needed to run this notebook as a job.
 # Provide them via DB widgets or notebook arguments.
 
@@ -53,52 +70,52 @@ dbutils.widgets.text(
 # MLflow experiment name.
 dbutils.widgets.text(
     "experiment_name",
-    f"/dev-machine_learning-experiment",
+    f"/dev-ml_usecase-experiment",
     label="MLflow experiment name",
 )
 # Unity Catalog registered model name to use for the trained mode.
 dbutils.widgets.text(
-    "model_name", "dev.machine_learning.machine_learning-model", label="Full (Three-Level) Model Name"
+    "model_name", "dev.ml_usecase.ml_usecase-model", label="Full (Three-Level) Model Name"
 )
 
 # Pickup features table name
 dbutils.widgets.text(
     "pickup_features_table",
-    "dev.machine_learning.trip_pickup_features",
+    "dev.ml_usecase.trip_pickup_features",
     label="Pickup Features Table",
 )
 
 # Dropoff features table name
 dbutils.widgets.text(
     "dropoff_features_table",
-    "dev.machine_learning.trip_dropoff_features",
+    "dev.ml_usecase.trip_dropoff_features",
     label="Dropoff Features Table",
 )
 
 # COMMAND ----------
-# DBTITLE 1,Define input and output variables
 
+# DBTITLE 1,Define input and output variables
 input_table_path = dbutils.widgets.get("training_data_path")
 experiment_name = dbutils.widgets.get("experiment_name")
 model_name = dbutils.widgets.get("model_name")
 
 # COMMAND ----------
-# DBTITLE 1, Set experiment
 
+# DBTITLE 1, Set experiment
 import mlflow
 
 mlflow.set_experiment(experiment_name)
 mlflow.set_registry_uri('databricks-uc')
 
 # COMMAND ----------
-# DBTITLE 1, Load raw data
 
+# DBTITLE 1, Load raw data
 raw_data = spark.read.format("delta").load(input_table_path)
 raw_data.display()
 
 # COMMAND ----------
-# DBTITLE 1, Helper functions
 
+# DBTITLE 1, Helper functions
 from datetime import timedelta, timezone
 import math
 import mlflow.pyfunc
@@ -156,14 +173,14 @@ def get_latest_model_version(model_name):
 
 
 # COMMAND ----------
-# DBTITLE 1, Read taxi data for training
 
+# DBTITLE 1, Read taxi data for training
 taxi_data = rounded_taxi_data(raw_data)
 taxi_data.display()
 
 # COMMAND ----------
-# DBTITLE 1, Create FeatureLookups
 
+# DBTITLE 1, Create FeatureLookups
 from databricks.feature_store import FeatureLookup
 import mlflow
 
@@ -192,8 +209,8 @@ dropoff_feature_lookups = [
 ]
 
 # COMMAND ----------
-# DBTITLE 1, Create Training Dataset
 
+# DBTITLE 1, Create Training Dataset
 from databricks import feature_store
 
 # End any existing runs (in the case this notebook is being run for a second time)
@@ -230,8 +247,8 @@ training_df.display()
 # MAGIC Train a LightGBM model on the data returned by `TrainingSet.to_df`, then log the model with `FeatureStoreClient.log_model`. The model will be packaged with feature metadata.
 
 # COMMAND ----------
-# DBTITLE 1, Train model
 
+# DBTITLE 1, Train model
 import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 import mlflow.lightgbm
@@ -260,8 +277,8 @@ num_rounds = 100
 model = lgb.train(param, train_lgb_dataset, num_rounds)
 
 # COMMAND ----------
-# DBTITLE 1, Log model and return output.
 
+# DBTITLE 1, Log model and return output.
 # Log the trained model with MLflow and package it with feature lookup information.
 fs.log_model(
     model,

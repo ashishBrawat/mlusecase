@@ -15,15 +15,15 @@
 MLOps Stacks ML resources are configured and deployed through [databricks CLI bundles](https://learn.microsoft.com/azure/databricks/dev-tools/cli/bundle-cli).
 The bundle setting file must be expressed in YAML format and must contain at minimum the top-level bundle mapping.
 
-The databricks CLI bundles top level is defined by file `machine_learning/databricks.yml`.
+The databricks CLI bundles top level is defined by file `ml_usecase/databricks.yml`.
 During databricks CLI bundles deployment, the root config file will be loaded, validated and deployed to workspace provided by the environment together with all the included resources.
 
 ML Resource Configurations in this directory:
- - model workflow (`machine_learning/resources/model-workflow-resource.yml`)
- - batch inference workflow (`machine_learning/resources/batch-inference-workflow-resource.yml`)
- - monitoring workflow (`machine_learning/resources/monitoring-workflow-resource.yml`)
- - feature engineering workflow (`machine_learning/resources/feature-engineering-workflow-resource.yml`)
- - model definition and experiment definition (`machine_learning/resources/ml-artifacts-resource.yml`)
+ - model workflow (`ml_usecase/resources/model-workflow-resource.yml`)
+ - batch inference workflow (`ml_usecase/resources/batch-inference-workflow-resource.yml`)
+ - monitoring workflow (`ml_usecase/resources/monitoring-workflow-resource.yml`)
+ - feature engineering workflow (`ml_usecase/resources/feature-engineering-workflow-resource.yml`)
+ - model definition and experiment definition (`ml_usecase/resources/ml-artifacts-resource.yml`)
 
 
 ### Deployment Config & CI/CD integration
@@ -32,16 +32,16 @@ Deployment configs of different deployment targets share the general ML resource
 This project ships with CI/CD workflows for developing and deploying ML resource configurations based on deployment config.
 
 For Model Registry in Unity Catalog, we expect a catalog to exist with the name of the deployment target by default. For example, if the deployment target is `dev`, we expect a catalog named `dev` to exist in the workspace. 
-If you want to use different catalog names, please update the `targets` declared in the `machine_learning/databricks.yml` and `machine_learning/resources/ml-artifacts-resource.yml` files.
-If changing the `staging`, `prod`, or `test` deployment targets, you'll need to update the workflows located in the `.github/workflows` directory.
+If you want to use different catalog names, please update the `targets` declared in the `ml_usecase/databricks.yml` and `ml_usecase/resources/ml-artifacts-resource.yml` files.
+If changing the `staging`, `prod`, or `test` deployment targets, you'll need to update the  pipelines located in the `azure-pipelines` directory.
 
 
 | Deployment Target | Description                                                                                                                                                                                                                           | Databricks Workspace | Model Name                          | Experiment Name                                |
 |-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------|-------------------------------------|------------------------------------------------|
-| dev         | The `dev` deployment target is used by ML engineers to deploy ML resources to development workspace with `dev` configs. The config is for ML project development purposes.                                                           | dev workspace        | dev-machine_learning-model     | /dev-machine_learning-experiment     |
-| staging     | The `staging` deployment target is part of the CD pipeline. Latest main content will be deployed to staging workspace with `staging` config.                                                             | staging workspace    | staging-machine_learning-model | /staging-machine_learning-experiment |
-| prod        | The `prod` deployment target is part of the CD pipeline. Latest release content will be deployed to prod workspace with `prod` config.                                                                      | prod workspace       | prod-machine_learning-model    | /prod-machine_learning-experiment    |
-| test        | The `test` deployment target is part of the CI pipeline. For changes targeting the main branch, upon making a PR, an integration test will be triggered and ML resources deployed to the staging workspace defined under `test` deployment target. | staging workspace    | test-machine_learning-model    | /test-machine_learning-experiment    |
+| dev         | The `dev` deployment target is used by ML engineers to deploy ML resources to development workspace with `dev` configs. The config is for ML project development purposes.                                                           | dev workspace        | dev-ml_usecase-model     | /dev-ml_usecase-experiment     |
+| staging     | The `staging` deployment target is part of the CD pipeline. Latest main content will be deployed to staging workspace with `staging` config.                                                             | staging workspace    | staging-ml_usecase-model | /staging-ml_usecase-experiment |
+| prod        | The `prod` deployment target is part of the CD pipeline. Latest release content will be deployed to prod workspace with `prod` config.                                                                      | prod workspace       | prod-ml_usecase-model    | /prod-ml_usecase-experiment    |
+| test        | The `test` deployment target is part of the CI pipeline. For changes targeting the main branch, upon making a PR, an integration test will be triggered and ML resources deployed to the staging workspace defined under `test` deployment target. | staging workspace    | test-ml_usecase-model    | /test-ml_usecase-experiment    |
 
 During ML code development, you can deploy local ML resource configurations together with ML code to the a Databricks workspace to run the training, model validation or batch inference pipelines. The deployment will use `dev` config by default.
 
@@ -60,7 +60,7 @@ Upon merging code into the release branch, the release branch content will be de
 To set up the databricks CLI using a Databricks personal access token, take the following steps:
 
 1. Follow [databricks CLI](https://learn.microsoft.com/azure/databricks/dev-tools/cli/databricks-cli) to download and set up the databricks CLI locally.
-2. Complete the `TODO` in `machine_learning/databricks.yml` to add the dev workspace URI under `targets.dev.workspace.host`.
+2. Complete the `TODO` in `ml_usecase/databricks.yml` to add the dev workspace URI under `targets.dev.workspace.host`.
 3. [Create a personal access token](https://learn.microsoft.com/azure/databricks/dev-tools/auth/pat)
   in your dev workspace and copy it.
 4. Set an env variable `DATABRICKS_TOKEN` with your Databricks personal access token in your terminal. For example, run `export DATABRICKS_TOKEN=dapi12345` if the access token is dapi12345.
@@ -69,9 +69,9 @@ To set up the databricks CLI using a Databricks personal access token, take the 
 Alternatively, you can use the other approaches described in the [databricks CLI](https://learn.microsoft.com/azure/databricks/dev-tools/cli/databricks-cli) documentation to set up authentication. For example, using your Databricks username/password, or seting up a local profile.
 
 ### Validate and provision ML resource configurations
-1. After installing the databricks CLI and creating the `DATABRICKS_TOKEN` env variable, change to the `machine_learning` directory.
+1. After installing the databricks CLI and creating the `DATABRICKS_TOKEN` env variable, change to the `ml_usecase` directory.
 2. Run `databricks bundle validate` to validate the Databricks resource configurations. 
-3. Run `databricks bundle deploy` to provision the Databricks resource configurations to the dev workspace. The resource configurations and your ML code will be copied together to the dev workspace. The defined resources such as Databricks Workflows, MLflow Model and MLflow Experiment will be provisioned according to the config files under `machine_learning/resources`.
+3. Run `databricks bundle deploy` to provision the Databricks resource configurations to the dev workspace. The resource configurations and your ML code will be copied together to the dev workspace. The defined resources such as Databricks Workflows, MLflow Model and MLflow Experiment will be provisioned according to the config files under `ml_usecase/resources`.
 4. Go to the Databricks dev workspace, check the defined model, experiment and workflows status, and interact with the created workflows.
 
 ### Destroy ML resource configurations
@@ -99,7 +99,7 @@ Follow the next section to configure the input and output data tables for the ba
 ### Setting up the batch inference job
 The batch inference job expects an input Delta table with a schema that your registered model accepts. To use the batch
 inference job, set up such a Delta table in both your staging and prod workspaces.
-Following this, update the batch_inference_job base parameters in `machine_learning/resources/batch-inference-workflow-resource.yml` to pass
+Following this, update the batch_inference_job base parameters in `ml_usecase/resources/batch-inference-workflow-resource.yml` to pass
 the name of the input Delta table and the name of the output Delta table to which to write batch predictions.
 
 As the batch job will be run with the credentials of the service principal that provisioned it, make sure that the service
@@ -125,7 +125,7 @@ resolve the `TODOs` in the ModelValidation task of [model-workflow-resource.yml]
 ## Develop and test config changes
 
 ### databricks CLI bundles schema overview
-To get started, open `machine_learning/resources/batch-inference-workflow-resource.yml`.  The file contains the ML resource definition of a batch inference job, like:
+To get started, open `ml_usecase/resources/batch-inference-workflow-resource.yml`.  The file contains the ML resource definition of a batch inference job, like:
 
 ```$xslt
 new_cluster: &new_cluster
@@ -139,7 +139,7 @@ new_cluster: &new_cluster
 resources:
   jobs:
     batch_inference_job:
-      name: ${bundle.target}-machine_learning-batch-inference-job
+      name: ${bundle.target}-ml_usecase-batch-inference-job
       tasks:
         - task_key: batch_inference_job
           <<: *new_cluster
@@ -151,12 +151,12 @@ resources:
               ...
 ```
 
-The example above defines a Databricks job with name `${bundle.target}-machine_learning-batch-inference-job`
-that runs the notebook under `machine_learning/deployment/batch_inference/notebooks/BatchInference.py` to regularly apply your ML model for batch inference. 
+The example above defines a Databricks job with name `${bundle.target}-ml_usecase-batch-inference-job`
+that runs the notebook under `ml_usecase/deployment/batch_inference/notebooks/BatchInference.py` to regularly apply your ML model for batch inference. 
 
 At the start of the resource definition, we declared an anchor `new_cluster` that will be referenced and used later. For more information about anchors in yaml schema, please refer to the [yaml documentation](https://yaml.org/spec/1.2.2/#3222-anchors-and-aliases).
 
-We specify a `batch_inference_job` under `resources/jobs` to define a databricks workflow with internal key `batch_inference_job` and job name `{bundle.target}-machine_learning-batch-inference-job`.
+We specify a `batch_inference_job` under `resources/jobs` to define a databricks workflow with internal key `batch_inference_job` and job name `{bundle.target}-ml_usecase-batch-inference-job`.
 The workflow contains a single task with task key `batch_inference_job`. The task runs notebook `../deployment/batch_inference/notebooks/BatchInference.py` with provided parameters `env` and `input_table_name` passing to the notebook.
 After setting up databricks CLI, you can run command `databricks bundle schema`  to learn more about databricks CLI bundles schema.
 
@@ -164,8 +164,8 @@ The notebook_path is the relative path starting from the resource yaml file.
 
 ### Environment config based variables
 The `${bundle.target}` will be replaced by the environment config name during the bundle deployment. For example, during the deployment of a `test` environment config, the job name will be
-`test-machine_learning-batch-inference-job`. During the deployment of the `staging` environment config, the job name will be
-`staging-machine_learning-batch-inference-job`.
+`test-ml_usecase-batch-inference-job`. During the deployment of the `staging` environment config, the job name will be
+`staging-ml_usecase-batch-inference-job`.
 
 
 To use different values based on different environment, you can use bundle variables based on the given target, for example,
@@ -194,7 +194,7 @@ new_cluster: &new_cluster
 resources:
   jobs:
     batch_inference_job:
-      name: ${bundle.target}-machine_learning-batch-inference-job
+      name: ${bundle.target}-ml_usecase-batch-inference-job
       tasks:
         - task_key: batch_inference_job
           <<: *new_cluster

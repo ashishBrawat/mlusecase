@@ -17,8 +17,8 @@ resources:
       model:
         name: ${var.model_name}
         catalog_name: ${bundle.target}
-        schema_name: machine_learning
-        comment: Registered model in Unity Catalog for the "machine_learning" ML Project for ${bundle.target} deployment target.
+        schema_name: ml_usecase
+        comment: Registered model in Unity Catalog for the "ml_usecase" ML Project for ${bundle.target} deployment target.
         <<: *grants
         depends_on:
           - resources.jobs.model_training_job.id
@@ -28,4 +28,4 @@ resources:
     experiment:
       name: ${var.experiment_name}
       <<: *permissions
-      description: MLflow Experiment used to track runs for machine_learning project.
+      description: MLflow Experiment used to track runs for ml_usecase project.
